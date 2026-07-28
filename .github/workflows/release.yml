@@ -1,0 +1,49 @@
+name: Release
+
+# Publishes to PyPI on a version tag, using Trusted Publishing (OIDC).
+# No API token is stored in repository secrets.
+#
+# One-time setup by the repository owner, before the first tag:
+#   1. Create the `inject-probe` project on PyPI.
+#   2. Add a trusted publisher: this repository, workflow `release.yml`,
+#      environment `pypi`.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+
+      # Never publish a build that has not passed the full suite.
+      - run: uv python install 3.12 3.13 3.14
+      - run: uv run --with nox nox
+
+      - run: uv build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # required for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
