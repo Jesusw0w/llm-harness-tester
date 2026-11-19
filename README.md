@@ -1,7 +1,7 @@
 # inject-probe
 
-**Status: v0.1.0, not yet published to PyPI.** Everything described below works;
-install from source until the first release.
+**Status: alpha (v0.1.0).** The CLI and report format may still change between
+minor versions.
 
 ## The problem
 
@@ -47,7 +47,7 @@ tool-call hijacking, system-prompt extraction, multi-turn escalation.
 ## Install
 
 ```bash
-uv tool install git+https://github.com/Jesusw0w/llm-harness-tester   # pip install inject-probe at first release
+uv tool install inject-probe     # or: pipx install inject-probe
 ```
 
 ## Usage
@@ -181,11 +181,11 @@ benchmark is a marketing claim.
 Three choices shape everything else. Each has an ADR in `docs/adr/` covering what
 was chosen, what was rejected, and why:
 
-1. [Canary detection over LLM-judge scoring](docs/adr/0001-canary-detection-over-llm-judge.md)
+1. [Canary detection over LLM-judge scoring](https://github.com/Jesusw0w/llm-harness-tester/blob/main/docs/adr/0001-canary-detection-over-llm-judge.md)
    — and why the canary is never present in the payload it is carried by.
-2. [Static, cited payloads over model-generated ones](docs/adr/0002-static-cited-payloads.md)
+2. [Static, cited payloads over model-generated ones](https://github.com/Jesusw0w/llm-harness-tester/blob/main/docs/adr/0002-static-cited-payloads.md)
    — reproducibility over coverage.
-3. [Regression baselines over absolute thresholds](docs/adr/0003-regression-baselines-over-thresholds.md)
+3. [Regression baselines over absolute thresholds](https://github.com/Jesusw0w/llm-harness-tester/blob/main/docs/adr/0003-regression-baselines-over-thresholds.md)
    — why a run exits 0 at a 100% success rate.
 
 Every payload cites published research in its docstring — `inject-probe

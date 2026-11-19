@@ -5,14 +5,14 @@ design choices lives in `adr/`; the architecture in `PLANNING.md`.
 
 ## State
 
-v0.1.0 is feature-complete and not yet published: 15 probes across 3 attack
+v0.1.0 is released on PyPI as `inject-probe`: 15 probes across 3 attack
 classes, callable and HTTP/chat adapters, JSON reports, baseline gating.
 
 ## Next
 
-1. Create the `inject-probe` project on PyPI and register this repository as a
-   trusted publisher (workflow `release.yml`, environment `pypi`), then tag
-   `v0.1.0`.
+1. Releases: bump `__version__` in `src/inject_probe/__init__.py`, then create
+   a GitHub release with a matching `vX.Y.Z` tag. The upload to PyPI waits for
+   approval in the `pypi` environment.
 2. Optionally rename the GitHub repository to `inject-probe` to match the
    distribution name. GitHub redirects the old URL, so the README install line
    keeps working.
