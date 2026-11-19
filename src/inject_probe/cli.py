@@ -27,6 +27,27 @@ from inject_probe.runner import run
 from inject_probe.target import Target
 
 
+def _positive_int(raw: str) -> int:
+    """Parse a strictly positive integer argument.
+
+    Args:
+        raw: The raw argument value.
+
+    Returns:
+        The parsed value.
+
+    Raises:
+        argparse.ArgumentTypeError: The value is not an integer of at least 1.
+    """
+    try:
+        value = int(raw)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not an integer: {raw!r}") from None
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, got {value}")
+    return value
+
+
 def _build_parser() -> argparse.ArgumentParser:
     """Construct the argument parser.
 
@@ -104,7 +125,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     run_command.add_argument(
         "--concurrency",
-        type=int,
+        type=_positive_int,
         default=DEFAULT_CONCURRENCY,
         help=f"Probes in flight at once. Default {DEFAULT_CONCURRENCY}.",
     )
@@ -216,6 +237,11 @@ def _run(arguments: argparse.Namespace) -> int:
     attack_class = (
         AttackClass(arguments.attack_class) if arguments.attack_class else None
     )
+    # Read the baseline before anything runs: a bad path should not cost a full
+    # run against a paid endpoint, and `--json` may be about to overwrite it.
+    baseline = (
+        load_baseline(arguments.baseline) if arguments.baseline is not None else None
+    )
     target, spec = _select_target(arguments)
     try:
         probes = build_probes(seed=arguments.seed, attack_class=attack_class)
@@ -235,10 +261,10 @@ def _run(arguments: argparse.Namespace) -> int:
     # No absolute threshold: no real system scores zero, so failing on the
     # presence of successes would make the tool useless in CI. Regression
     # comparison against a recorded baseline is what gates a build.
-    if arguments.baseline is None:
+    if baseline is None:
         return EXIT_OK
 
-    comparison = compare(report, load_baseline(arguments.baseline), arguments.baseline)
+    comparison = compare(report, baseline, arguments.baseline)
     if not arguments.quiet:
         print(render_comparison(comparison, arguments.baseline))
     if comparison.failed(fail_on_new=arguments.fail_on_new):

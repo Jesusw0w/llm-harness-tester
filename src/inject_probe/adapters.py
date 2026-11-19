@@ -13,6 +13,7 @@ dependency per vendor.
 import importlib
 import importlib.util
 import inspect
+import sys
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -77,12 +78,22 @@ class CallableTarget:
 
         Returns:
             The application's reply.
+
+        Raises:
+            TargetError: The application raised. One payload that crashes the
+                application must not discard every other probe's result, so the
+                exception becomes an `error` outcome for this probe only.
         """
-        result = (
-            self.fn(prompt, documents=documents)
-            if self.accepts_documents
-            else self.fn(prompt)
-        )
+        try:
+            result = (
+                self.fn(prompt, documents=documents)
+                if self.accepts_documents
+                else self.fn(prompt)
+            )
+        except Exception as error:
+            raise TargetError(
+                f"target raised {type(error).__name__}: {error}"
+            ) from error
         if isinstance(result, TargetResponse):
             return result
         return TargetResponse(text=result)
@@ -299,8 +310,24 @@ def chat_completions(
     )
 
 
+def _prepend_import_root(directory: Path) -> None:
+    """Make modules under `directory` importable, if they are not already.
+
+    Args:
+        directory: The directory to put at the front of `sys.path`.
+    """
+    entry = str(directory)
+    if entry not in sys.path:
+        sys.path.insert(0, entry)
+
+
 def _load_module(reference: str) -> ModuleType:
     """Import a module from a filesystem path or a dotted name.
+
+    The file's own directory is put on `sys.path` so that it can import its
+    siblings, and the working directory is put there for dotted names: the
+    console script's `sys.path` holds neither, so ``myapp.entry:app`` would
+    otherwise fail for any package that is not installed.
 
     Args:
         reference: Either ``path/to/file.py`` or ``package.module``.
@@ -312,15 +339,17 @@ def _load_module(reference: str) -> ModuleType:
         ConfigError: The module could not be found or executed.
     """
     path = Path(reference)
-    if path.suffix == ".py" or path.exists():
+    if path.suffix == ".py":
         if not path.is_file():
             raise ConfigError(f"no such file: {reference}")
+        _prepend_import_root(path.resolve().parent)
         spec = importlib.util.spec_from_file_location(path.stem, path)
         if spec is None or spec.loader is None:
             raise ConfigError(f"cannot load a module from {reference}")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module
+    _prepend_import_root(Path.cwd())
     try:
         return importlib.import_module(reference)
     except ImportError as error:

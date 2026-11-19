@@ -100,12 +100,19 @@ def load_baseline(path: Path) -> Baseline:
             f"this build writes {SCHEMA_VERSION}; re-record it"
         )
 
-    return Baseline(
-        corpus_version=str(payload.get("corpus_version", "")),
-        outcomes={
+    try:
+        outcomes = {
             result["probe_id"]: Outcome(result["outcome"])
             for result in payload["results"]
-        },
+        }
+    except (KeyError, TypeError, ValueError) as error:
+        raise ConfigError(
+            f"baseline {path} has a malformed result entry: {error!r}"
+        ) from error
+
+    return Baseline(
+        corpus_version=str(payload.get("corpus_version", "")),
+        outcomes=outcomes,
     )
 
 

@@ -1,8 +1,8 @@
 """Exception hierarchy.
 
-The split is load-bearing: the CLI maps `ConfigError` to a usage exit code and
-`TargetError` to a probe-level error result, and the runner retries only the
-latter.
+The split is load-bearing: the CLI maps `ConfigError` to a usage exit code, and
+the runner turns `TargetError` into a probe-level `error` result. Neither is
+retried here; connection retries belong to the HTTP transport.
 """
 
 
@@ -18,8 +18,8 @@ class ConfigError(InjectProbeError):
 
 
 class TargetError(InjectProbeError):
-    """The system under test could not be reached or returned an unusable reply.
+    """The system under test could not be reached, raised, or replied unusably.
 
-    Transport-level only. A target that answers and simply refuses the injection
+    Never a verdict. A target that answers and simply refuses the injection
     is a successful probe with a `blocked` outcome, never this.
     """

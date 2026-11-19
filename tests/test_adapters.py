@@ -1,12 +1,13 @@
 """Loading and wrapping user applications as targets."""
 
+import sys
 from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 
 from inject_probe.adapters import CallableTarget, load_target
-from inject_probe.exceptions import ConfigError
+from inject_probe.exceptions import ConfigError, TargetError
 from inject_probe.target import TargetResponse
 
 VULNERABLE_EXAMPLE = Path(__file__).parent.parent / "examples" / "vulnerable.py"
@@ -74,3 +75,36 @@ def test_rejects_a_non_callable_attribute() -> None:
 def test_rejects_a_missing_file() -> None:
     with pytest.raises(ConfigError, match="no such file"):
         load_target("does/not/exist.py:app")
+
+
+def test_a_file_target_can_import_its_siblings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Real entry points import their own modules; the file's directory must count."""
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    (tmp_path / "sibling_helper.py").write_text('REPLY = "from sibling"\n')
+    entry = tmp_path / "entry.py"
+    entry.write_text(
+        "import sibling_helper\n\ndef app(p):\n    return sibling_helper.REPLY\n"
+    )
+    assert load_target(f"{entry}:app").send("q").text == "from sibling"
+
+
+def test_a_dotted_spec_resolves_from_the_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The console script does not put the working directory on `sys.path`."""
+    monkeypatch.setattr(sys, "path", [p for p in sys.path if p not in ("", ".")])
+    package = tmp_path / "cwd_package"
+    package.mkdir()
+    (package / "__init__.py").write_text('def app(p):\n    return "cwd"\n')
+    monkeypatch.chdir(tmp_path)
+    assert load_target("cwd_package:app").send("q").text == "cwd"
+
+
+def test_an_exception_in_the_application_becomes_a_target_error() -> None:
+    def app(prompt: str) -> str:
+        raise RuntimeError("boom")
+
+    with pytest.raises(TargetError, match="RuntimeError: boom"):
+        CallableTarget.wrap(app).send("q")

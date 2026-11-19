@@ -47,13 +47,13 @@ tool-call hijacking, system-prompt extraction, multi-turn escalation.
 ## Install
 
 ```bash
-uv pip install git+https://github.com/Jesusw0w/inject-probe   # pip install inject-probe at first release
+uv tool install git+https://github.com/Jesusw0w/llm-harness-tester   # pip install inject-probe at first release
 ```
 
 ## Usage
 
 Point it at an entry point. A target is any Python callable taking a prompt and,
-ideally, a list of retrieved documents:
+ideally, a list of retrieved documents, returning a string:
 
 ```python
 # myapp/entrypoint.py
@@ -89,16 +89,21 @@ class that matters most.
 
 ```console
 $ inject-probe run --target app.py:app --json report.json   # full report, incl. every successful payload
+$ inject-probe run --target myapp.entrypoint:app            # dotted form, resolved from the working directory
 $ inject-probe run --target app.py:app --attack-class direct
 $ inject-probe list-probes
 ```
+
+Probes run four at a time by default (`--concurrency`), so the callable must be
+safe to call from several threads; pass `--concurrency 1` if it is not. If the
+callable raises, that probe is recorded as `error` and the run carries on.
 
 Non-Python applications are reached over HTTP:
 
 ```console
 $ inject-probe run --target-url https://api.internal/ask \
     --prompt-field question --documents-field context --response-field data.reply \
-    --header 'Authorization: Bearer $TOKEN'
+    --header "Authorization: Bearer $TOKEN"
 
 $ inject-probe run --target-chat http://localhost:11434/v1/chat/completions --model llama3
 ```
@@ -122,6 +127,9 @@ $ inject-probe run --target app.py:app --baseline baseline.json # exit 1 on regr
 - was blocked, now succeeds → **fails the build**
 - was succeeding, now blocked → passes, reported as fixed
 - absent from the baseline → reported as new; fails only with `--fail-on-new`
+- errored (target unreachable or raised) → left out of the comparison on both
+  sides, so check the error count in the output: a run where every probe errored
+  has no regressions to report
 
 The baseline *is* a report — no second format. Reports carry no timestamps, so an
 unchanged system produces byte-identical output and a committed baseline shows an

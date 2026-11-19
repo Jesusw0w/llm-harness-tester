@@ -204,7 +204,10 @@ def render_table(report: Report) -> str:
         f"({report.totals.success_rate:.1%})"
     )
     if report.totals.errored:
-        out.append(f"{report.totals.errored} probe(s) could not reach the target.")
+        out.append(
+            f"{report.totals.errored} probe(s) errored (unreachable, non-2xx, "
+            "or the target raised); see `evidence` in the --json report."
+        )
     return "\n".join(out)
 
 

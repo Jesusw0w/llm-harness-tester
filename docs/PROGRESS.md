@@ -4,6 +4,53 @@ Session history, newest first. Records what was non-obvious — not what the dif
 
 ---
 
+## 2026-11-19 — Pre-public review: CLI bug fixes, README corrections
+
+**Changed.** `adapters.py` (target loading, callable exceptions), `cli.py`
+(baseline read first, `--concurrency` validation), `baseline.py` (malformed
+entries), `report.py` (error summary line), `exceptions.py` (stale docstring),
+README, `[project.urls]` in `pyproject.toml`. 8 new tests (129 total).
+
+**Verified.** `uv run nox` green on 3.12/3.13/3.14. Every bug below was reproduced
+through the installed console script in a fresh clone before it was fixed, and
+re-run afterwards. Both HTTP adapters were run end to end against a local stub
+server, header included. Tested `uv tool install` from the repo, and `uv build`;
+the sdist contains no ignored files.
+
+**Bugs found and fixed.**
+
+- *`--json X --baseline X` always passed.* The report was written before the
+  baseline was read, so the run compared against itself. The baseline is now
+  loaded before the run starts. That also means a bad baseline path fails
+  immediately instead of after a full (possibly paid) run.
+- *Dotted specs (`pkg.module:app`) only worked in pytest.* The console script's
+  `sys.path` does not include the working directory, so this form failed for any
+  package that was not installed. The tests passed only because pytest puts
+  `tests/` on the path. The working directory is now added to `sys.path`.
+- *File targets could not import their sibling modules*, which rules out almost
+  every real entry point. The file's directory is now added to `sys.path`.
+- *`--target somedir:app` was treated as a file* whenever a directory of that
+  name existed. Only a `.py` suffix now means "file".
+- *A callable that raised on one payload crashed the whole run with a
+  traceback.* It now becomes an `error` outcome for that probe only, consistent
+  with the existing "one bad probe must not discard the run" rule.
+- `--concurrency 0` and malformed baseline entries produced tracebacks. They now
+  give usage errors.
+- README: the `--header 'Authorization: Bearer $TOKEN'` example used single
+  quotes, so the literal string `$TOKEN` was sent. The install URL pointed at
+  `Jesusw0w/inject-probe`, which does not exist; the repository is
+  `llm-harness-tester`. If it is renamed later, GitHub redirects the old URL.
+
+**Open — needs an owner decision.** Errored probes are left out of the baseline
+comparison on both sides. So a run where *every* probe errors (an expired token
+giving 401s, a dead endpoint) reports 0 regressions and exits 0 under
+`--baseline`. That is the "outage becomes a green build" case the phase 4 note
+meant to prevent. One option: fail the gate when `errored > 0`, or when
+`errored == attempted`. Left unchanged because it is a policy choice; the
+README now warns about it.
+
+---
+
 ## 2026-07-28 — Phases 3 and 4: full corpus, HTTP adapters, baseline gating, docs
 
 **Changed.** `attacks/indirect.py` (4 payloads) and `attacks/encoding.py` (7);

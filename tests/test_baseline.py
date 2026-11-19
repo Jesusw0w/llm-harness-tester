@@ -215,3 +215,32 @@ def test_a_narrowed_run_does_not_regress_against_a_full_baseline(
         )
         == EXIT_OK
     )
+
+
+def test_writing_the_report_over_its_own_baseline_still_compares_the_old_one(
+    tmp_path: Path,
+) -> None:
+    """`--json X --baseline X` must compare before overwriting, not after."""
+    path = tmp_path / "baseline.json"
+    echo = Path(__file__).parent.parent / "examples" / "echoing.py"
+    assert (
+        main(["run", "--target", f"{echo}:app", "--json", str(path), "--quiet"])
+        == EXIT_OK
+    )
+    argv = ["run", "--target", TARGET, "--json", str(path), "--baseline", str(path)]
+    assert main([*argv, "--quiet"]) == EXIT_REGRESSION
+
+
+def test_a_missing_baseline_is_rejected_before_the_run(tmp_path: Path) -> None:
+    missing = tmp_path / "missing.json"
+    assert (
+        main(["run", "--target", TARGET, "--baseline", str(missing), "--quiet"])
+        == EXIT_USAGE
+    )
+
+
+def test_a_malformed_baseline_entry_is_a_config_error(tmp_path: Path) -> None:
+    path = tmp_path / "bad.json"
+    path.write_text(json.dumps({"schema_version": 1, "results": [{"x": 1}]}))
+    with pytest.raises(ConfigError, match="malformed result entry"):
+        load_baseline(path)

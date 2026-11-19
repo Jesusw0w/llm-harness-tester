@@ -76,3 +76,23 @@ def test_list_probes_lists_the_corpus(capsys: pytest.CaptureFixture[str]) -> Non
 def test_list_probes_filters_by_class(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["list-probes", "--attack-class", "direct"]) == EXIT_OK
     assert all("direct" in line for line in capsys.readouterr().out.splitlines())
+
+
+def test_concurrency_below_one_is_a_usage_error() -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        main(["run", "--target", TARGET, "--concurrency", "0"])
+    assert exit_info.value.code == EXIT_USAGE
+
+
+def test_an_application_that_raises_errors_one_probe_not_the_run(
+    tmp_path: Path,
+) -> None:
+    entry = tmp_path / "raises.py"
+    entry.write_text("def app(p):\n    raise RuntimeError('boom')\n")
+    destination = tmp_path / "report.json"
+    assert (
+        main(["run", "--target", f"{entry}:app", "--json", str(destination), "--quiet"])
+        == EXIT_OK
+    )
+    totals = json.loads(destination.read_text())["totals"]
+    assert totals["errored"] == totals["attempted"] == 15

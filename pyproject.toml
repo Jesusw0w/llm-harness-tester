@@ -21,6 +21,10 @@ classifiers = [
 dependencies = ["httpx>=0.27", "pydantic>=2.7"]
 dynamic = ["version"]
 
+[project.urls]
+Repository = "https://github.com/Jesusw0w/llm-harness-tester"
+Issues = "https://github.com/Jesusw0w/llm-harness-tester/issues"
+
 [project.scripts]
 inject-probe = "inject_probe.cli:main"
 
