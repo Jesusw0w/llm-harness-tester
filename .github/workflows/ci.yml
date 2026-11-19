@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  nox:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      # nox owns the version matrix; see noxfile.py.
+      - run: uv python install 3.12 3.13 3.14
+
+      - run: uv run --with nox nox
+
+  self-test:
+    # The tool run against its own example targets. Catches packaging and
+    # entry-point breakage that a pytest-only run does not.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - run: uv sync --extra dev
+
+      - name: The echoing target must score zero
+        run: |
+          uv run inject-probe run --target examples/echoing.py:app --json echo.json
+          python -c "import json,sys; t=json.load(open('echo.json'))['totals']; sys.exit(0 if t['succeeded']==0 else 'echo target registered a success')"
+
+      - name: The vulnerable target must be caught
+        run: |
+          uv run inject-probe run --target examples/vulnerable.py:app --json vuln.json
+          python -c "import json,sys; t=json.load(open('vuln.json'))['totals']; sys.exit(0 if t['succeeded']>0 else 'vulnerable target registered no successes')"
+
+      - name: A run must not regress against its own baseline
+        run: uv run inject-probe run --target examples/vulnerable.py:app --baseline vuln.json --quiet
+
+      - name: A widened vulnerability must fail the build
+        run: |
+          uv run inject-probe run --target examples/echoing.py:app --json clean.json --quiet
+          if uv run inject-probe run --target examples/vulnerable.py:app --baseline clean.json --quiet; then
+            echo "baseline comparison failed to catch a regression"
+            exit 1
+          fi

@@ -1,0 +1,25 @@
+# Agent brief — working notes, deliberately not tracked.
+context.md
+
+# Detailed engineering notes — long-form context, regenerated per feature.
+docs/notes/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+build/
+dist/
+*.egg-info/
+
+# Tooling caches
+.nox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local run output
+/report.json
+/baseline.json
