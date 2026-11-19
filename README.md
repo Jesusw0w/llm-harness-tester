@@ -121,15 +121,15 @@ a recorded run.
 
 ```console
 $ inject-probe run --target app.py:app --json baseline.json    # record, commit this
-$ inject-probe run --target app.py:app --baseline baseline.json # exit 1 on regression
+$ inject-probe run --target app.py:app --baseline baseline.json # exit 1 on regression or error
 ```
 
 - was blocked, now succeeds → **fails the build**
 - was succeeding, now blocked → passes, reported as fixed
 - absent from the baseline → reported as new; fails only with `--fail-on-new`
-- errored (target unreachable or raised) → left out of the comparison on both
-  sides, so check the error count in the output: a run where every probe errored
-  has no regressions to report
+- errored (target unreachable, non-2xx, or raised) → **fails the build**, even
+  if only one probe errored: a probe that could not be compared might have
+  regressed, and an expired token must not turn CI green
 
 The baseline *is* a report — no second format. Reports carry no timestamps, so an
 unchanged system produces byte-identical output and a committed baseline shows an
@@ -199,24 +199,9 @@ uv sync --extra dev
 uv run nox           # lint + mypy --strict + pytest on 3.12 / 3.13 / 3.14
 ```
 
-`docs/PLANNING.md` holds the architecture; `docs/PROGRESS.md` is the running log.
-
-## AI assistance
-
-This project was built with AI assistance (Claude Code), and disclosing that reads
-better than concealing it.
-
-How it was structured: the architecture, the attack taxonomy, the detection strategy
-and the scope boundaries were specified by the author up front in a written brief. The
-agent worked in small increments against that brief, one reviewable change at a time,
-and ran no git operations — every commit in this history was reviewed and made by the
-author. The payload corpus cites public research; citations were checked, not taken on
-trust.
-
-Where the author's judgment overrode the default output: the echo-suppression design
-(see `docs/adr/`), the decision to ship three finished attack classes rather than
-twelve stubs, and the removal of a speculative plugin registry, an LLM-judge detector
-and several unused abstractions from the first draft.
+`docs/PLANNING.md` holds the architecture; `docs/PROGRESS.md` the current state and
+what is next.
+This project was developed with AI assistance.
 
 ## Licence
 

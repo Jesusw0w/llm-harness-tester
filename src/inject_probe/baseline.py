@@ -11,6 +11,8 @@ it worse". That is a comparison against a recorded state:
 * was succeeded, now blocked -> fixed, reported and welcomed
 * absent from the baseline  -> new, reported; fails only with `--fail-on-new`,
   and only when the new probe succeeded
+* errored in this run       -> the build fails: the comparison is incomplete,
+  and an outage must never read as a clean run
 
 A baseline is just a saved report, so there is no second schema to keep in step
 and `--json` doubles as the recording command.
@@ -48,6 +50,7 @@ class Comparison:
         fixed: Probes that succeeded and are now blocked.
         new: Probes absent from the baseline that succeeded in this run.
         new_blocked: Probes absent from the baseline that were blocked.
+        errored: Probes that errored in this run, so could not be compared.
         unchanged: How many probes kept their previous outcome.
     """
 
@@ -55,6 +58,7 @@ class Comparison:
     fixed: tuple[str, ...]
     new: tuple[str, ...]
     new_blocked: tuple[str, ...]
+    errored: tuple[str, ...]
     unchanged: int
 
     def failed(self, *, fail_on_new: bool) -> bool:
@@ -65,9 +69,15 @@ class Comparison:
                 succeeded.
 
         Returns:
-            True if the run should exit non-zero.
+            True if the run should exit non-zero. Any errored probe fails it: a
+            probe that could not be compared might have regressed, and passing
+            would let an expired token or a dead endpoint go green.
         """
-        return bool(self.regressions) or (fail_on_new and bool(self.new))
+        return (
+            bool(self.regressions)
+            or bool(self.errored)
+            or (fail_on_new and bool(self.new))
+        )
 
 
 def load_baseline(path: Path) -> Baseline:
@@ -119,9 +129,9 @@ def load_baseline(path: Path) -> Baseline:
 def compare(report: Report, baseline: Baseline, baseline_path: Path) -> Comparison:
     """Compare a run against a recorded baseline.
 
-    Errored probes are ignored on both sides: a target that could not be reached
-    tells you nothing about whether it regressed, and treating "unreachable" as
-    "fixed" would quietly turn an outage into a green build.
+    Errored probes are never compared: a target that could not be reached tells
+    you nothing about whether it regressed, so they are neither fixed nor
+    regressed. They are collected in `errored` instead, which fails the gate.
 
     Args:
         report: This run.
@@ -147,10 +157,12 @@ def compare(report: Report, baseline: Baseline, baseline_path: Path) -> Comparis
     fixed: list[str] = []
     new: list[str] = []
     new_blocked: list[str] = []
+    errored: list[str] = []
     unchanged = 0
 
     for result in report.results:
         if result.outcome is Outcome.ERROR:
+            errored.append(result.probe_id)
             continue
         previous = baseline.outcomes.get(result.probe_id)
         if previous is None:
@@ -169,6 +181,7 @@ def compare(report: Report, baseline: Baseline, baseline_path: Path) -> Comparis
         fixed=tuple(fixed),
         new=tuple(new),
         new_blocked=tuple(new_blocked),
+        errored=tuple(errored),
         unchanged=unchanged,
     )
 
@@ -192,10 +205,13 @@ def render_comparison(comparison: Comparison, baseline_path: Path) -> str:
         lines.append(f"  NEW         {probe_id}  (not in baseline, succeeded)")
     for probe_id in comparison.new_blocked:
         lines.append(f"  new         {probe_id}  (not in baseline, blocked)")
+    for probe_id in comparison.errored:
+        lines.append(f"  ERROR       {probe_id}  (errored, could not be compared)")
     lines.append(
         f"  {len(comparison.regressions)} regression(s), "
         f"{len(comparison.fixed)} fixed, "
         f"{len(comparison.new) + len(comparison.new_blocked)} new, "
+        f"{len(comparison.errored)} errored, "
         f"{comparison.unchanged} unchanged."
     )
     return "\n".join(lines)

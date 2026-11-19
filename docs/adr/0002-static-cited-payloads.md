@@ -20,7 +20,7 @@ make every result auditable: a reader can see the exact bytes that were sent, lo
 the paper the technique came from, and judge whether the finding is real. The citation
 requirement does a second job, which is why it is enforced structurally rather than by
 convention: it keeps the corpus anchored to public research rather than to whatever a
-defence under development happens to block. A benchmark tuned against the thing it
+particular defence happens to block. A benchmark tuned against the thing it
 measures is marketing; a held-out one is evidence, and that property is destroyed
 silently and permanently the first time a payload is adjusted to make a filter look
 good. The accepted cost is coverage — a fixed corpus of fifteen probes finds less than

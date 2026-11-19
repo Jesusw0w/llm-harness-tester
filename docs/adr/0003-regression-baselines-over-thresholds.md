@@ -28,4 +28,5 @@ empty diff; and a baseline recorded against a different corpus version is refuse
 outright rather than warned about, because comparing a v1 baseline to a v2 corpus
 produces confident nonsense. Errored probes are excluded from the comparison on both
 sides — treating an unreachable target as "everything got fixed" would turn an outage
-into a green build.
+into a green build — and for the same reason any errored probe fails the gate: an
+incomplete comparison is not a clean one.

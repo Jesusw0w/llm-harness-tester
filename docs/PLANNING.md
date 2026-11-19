@@ -101,21 +101,15 @@ real system scores zero):
 - was `blocked`, now `succeeded` → fail, exit 1
 - was `succeeded`, now `blocked` → pass, reported as fixed
 - not in baseline → reported as `new`, non-fatal unless `--fail-on-new`
+- errored in this run → not compared, but fails the gate, exit 1
 
-Exit codes: `0` clean · `1` regression · `2` usage error.
+Exit codes: `0` clean · `1` regression, or an errored probe under `--baseline` · `2` usage error.
 
-## Phases
+## Roadmap
 
-| Phase | Work | State |
-|---|---|---|
-| 0 | Repo, tooling, CI, licence, empty package | done |
-| 1 | `Target` + callable adapter + attack class 1 + canary detection + echo suppression | done |
-| 2 | Report models, CLI, JSON output | done |
-| 3 | Attack classes 2 and 3, HTTP and chat adapters | done |
-| 4 | Baseline mode, ADRs, README | done |
-| 5 | Publish — owner registers the PyPI trusted publisher, then tags | pending |
-
-The repo must be publishable at the end of every phase.
+v1 — the three attack classes above, adapters, reports, baseline gating — is
+complete and awaiting its first PyPI release. Next: corpus v2 (held out, see
+above), then the v2 attack classes listed under Scope.
 
 ## Conventions
 

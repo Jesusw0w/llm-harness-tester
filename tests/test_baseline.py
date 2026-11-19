@@ -83,8 +83,8 @@ def test_a_new_blocked_probe_never_fails() -> None:
     assert not comparison.failed(fail_on_new=True)
 
 
-def test_errored_probes_are_ignored_on_both_sides() -> None:
-    """An outage must not read as every probe being fixed."""
+def test_errored_probes_are_not_compared_and_fail_the_gate() -> None:
+    """An outage must read neither as every probe fixed nor as a clean run."""
     report = _report(UnreachableTarget())
     previously_broken = _baseline_from(
         {result.probe_id: Outcome.SUCCEEDED for result in report.results}
@@ -92,7 +92,29 @@ def test_errored_probes_are_ignored_on_both_sides() -> None:
     comparison = compare(report, previously_broken, Path("b.json"))
     assert not comparison.fixed
     assert not comparison.regressions
-    assert not comparison.failed(fail_on_new=True)
+    assert len(comparison.errored) == len(report.results)
+    assert comparison.failed(fail_on_new=False)
+
+
+def test_a_single_errored_probe_fails_the_cli_gate(tmp_path: Path) -> None:
+    """Stricter by design: one probe that could not be compared fails the build."""
+    baseline = tmp_path / "baseline.json"
+    assert main(["run", "--target", TARGET, "--json", str(baseline), "--quiet"]) == 0
+    entry = tmp_path / "flaky.py"
+    entry.write_text(
+        "import importlib.util\n"
+        "spec = importlib.util.spec_from_file_location(\n"
+        f"    'v', {str(VULNERABLE_EXAMPLE)!r}\n"
+        ")\n"
+        "v = importlib.util.module_from_spec(spec)\n"
+        "spec.loader.exec_module(v)\n"
+        "def app(prompt, documents=()):\n"
+        "    if 'ROT13' in prompt:\n"
+        "        raise RuntimeError('flaky')\n"
+        "    return v.app(prompt, documents)\n"
+    )
+    argv = ["run", "--target", f"{entry}:app", "--baseline", str(baseline)]
+    assert main([*argv, "--quiet"]) == EXIT_REGRESSION
 
 
 def test_a_corpus_version_mismatch_is_refused() -> None:

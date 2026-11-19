@@ -76,7 +76,8 @@ def vulnerable_target() -> Target:
 def run_probes(target: Target, probes: Iterable[Probe]) -> list[Finding]:
     """Send each probe to a target and judge the reply.
 
-    A test-local stand-in for the runner, which lands in phase 2.
+    Serial and without the runner's error handling, so a test sees any
+    exception directly rather than as an `error` outcome.
 
     Args:
         target: The system under test.
